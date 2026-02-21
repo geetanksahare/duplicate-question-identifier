@@ -10,8 +10,11 @@ import distance
 from fuzzywuzzy import fuzz
 from nltk.corpus import stopwords
 
-# Download stopwords once
-nltk.download('stopwords')
+try:
+    STOP_WORDS = stopwords.words("english")
+except LookupError:
+    nltk.download("stopwords")
+    STOP_WORDS = stopwords.words("english")
 
 STOP_WORDS = stopwords.words("english")
 
@@ -167,6 +170,7 @@ def predict():
 
 
 # ---------- RUN ----------
-if __name__=="__main__":
-    app.run(debug=True)
+if __name__ == "__main__":
+    app.run()
+
 
