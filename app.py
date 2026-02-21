@@ -1,5 +1,7 @@
 from flask import Flask, request, render_template
 import pickle
+import os
+import gdown
 import numpy as np
 import re
 import nltk
@@ -13,7 +15,15 @@ nltk.download('stopwords')
 
 STOP_WORDS = stopwords.words("english")
 
-# Load model + vectorizer
+# ---------------- DOWNLOAD MODEL IF NOT PRESENT ----------------
+MODEL_PATH = "model.pkl"
+
+if not os.path.exists(MODEL_PATH):
+    file_id = "16ovjCaHiFu5WcMq-WNBHJ0hT_M1amF9I"
+    url = f"https://drive.google.com/uc?id={file_id}"
+    gdown.download(url, MODEL_PATH, quiet=False)
+
+# ---------------- LOAD MODEL + VECTORIZER ----------------
 model = pickle.load(open("model.pkl", "rb"))
 cv = pickle.load(open("cv.pkl", "rb"))
 
@@ -159,3 +169,4 @@ def predict():
 # ---------- RUN ----------
 if __name__=="__main__":
     app.run(debug=True)
+
