@@ -21,10 +21,10 @@ STOP_WORDS = stopwords.words("english")
 # ---------------- DOWNLOAD MODEL IF NOT PRESENT ----------------
 MODEL_PATH = "model.pkl"
 
-if not os.path.exists(MODEL_PATH):
+if not os.path.isfile("model.pkl"):
     file_id = "16ovjCaHiFu5WcMq-WNBHJ0hT_M1amF9I"
     url = f"https://drive.google.com/uc?id={file_id}"
-    gdown.download(url, MODEL_PATH, quiet=False)
+    gdown.download(url, "model.pkl", quiet=False)
 
 # ---------------- LOAD MODEL + VECTORIZER ----------------
 model = pickle.load(open("model.pkl", "rb"))
@@ -172,5 +172,6 @@ def predict():
 # ---------- RUN ----------
 if __name__ == "__main__":
     app.run()
+
 
 
