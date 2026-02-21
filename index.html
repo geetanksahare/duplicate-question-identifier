@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Duplicate Question Detector</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 50px;
+            background-color: #f4f4f4;
+        }
+
+        .form-container {
+            max-width: 600px;
+            margin: auto;
+            padding: 25px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px 0px #ccc;
+        }
+
+        h2 {
+            text-align: center;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0 20px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            resize: vertical;
+        }
+
+        input[type="submit"] {
+            width: 100%;
+            background-color: #4CAF50;
+            color: white;
+            padding: 12px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        input[type="submit"]:hover {
+            background-color: #45a049;
+        }
+
+        .result {
+            font-size: 1.5em;
+            text-align: center;
+            margin-top: 20px;
+            color: #4CAF50;
+            font-weight: bold;
+        }
+
+    </style>
+</head>
+
+<body>
+
+<div class="form-container">
+    <h2>Duplicate Question Detector</h2>
+
+    <form action="/predict" method="post">
+
+        <label>Question 1:</label>
+        <textarea name="q1" rows="3" placeholder="Enter first question..." required></textarea>
+
+        <label>Question 2:</label>
+        <textarea name="q2" rows="3" placeholder="Enter second question..." required></textarea>
+
+        <input type="submit" value="Check Duplicate">
+
+    </form>
+
+    {% if prediction_text %}
+        <div class="result">{{ prediction_text }}</div>
+    {% endif %}
+
+</div>
+
+</body>
+</html>
