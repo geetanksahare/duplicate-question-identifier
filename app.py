@@ -1,36 +1,44 @@
-from flask import Flask, request, render_template
+import streamlit as st
 import pickle
-import os
-import gdown
 import numpy as np
 import re
 import nltk
 import distance
+import os
+import gdown
 
 from fuzzywuzzy import fuzz
 from nltk.corpus import stopwords
 
+# ---------------- STREAMLIT PAGE ----------------
+st.set_page_config(page_title="Duplicate Question Identifier")
+
+st.title("Duplicate Question Identifier")
+
+# ---------------- DOWNLOAD STOPWORDS SAFELY ----------------
 try:
     STOP_WORDS = stopwords.words("english")
-except LookupError:
+except:
     nltk.download("stopwords")
     STOP_WORDS = stopwords.words("english")
-
-STOP_WORDS = stopwords.words("english")
 
 # ---------------- DOWNLOAD MODEL IF NOT PRESENT ----------------
 MODEL_PATH = "model.pkl"
 
-if not os.path.isfile("model.pkl"):
+if not os.path.isfile(MODEL_PATH):
     file_id = "16ovjCaHiFu5WcMq-WNBHJ0hT_M1amF9I"
     url = f"https://drive.google.com/uc?id={file_id}"
-    gdown.download(url, "model.pkl", quiet=False)
+    with st.spinner("Downloading ML model... (first run only)"):
+        gdown.download(url, MODEL_PATH, quiet=False)
 
-# ---------------- LOAD MODEL + VECTORIZER ----------------
-model = pickle.load(open("model.pkl", "rb"))
-cv = pickle.load(open("cv.pkl", "rb"))
+# ---------------- LOAD MODEL ----------------
+@st.cache_resource
+def load_models():
+    model = pickle.load(open("model.pkl", "rb"))
+    cv = pickle.load(open("cv.pkl", "rb"))
+    return model, cv
 
-app = Flask(__name__)
+model, cv = load_models()
 
 # ---------- PREPROCESS ----------
 def preprocess(q):
@@ -41,14 +49,11 @@ def preprocess(q):
 
 # ---------- FEATURE FUNCTIONS ----------
 def test_common_words(q1,q2):
-    w1 = set(q1.split())
-    w2 = set(q2.split())
-    return len(w1 & w2)
+    return len(set(q1.split()) & set(q2.split()))
 
 def test_total_words(q1,q2):
-    w1 = set(q1.split())
-    w2 = set(q2.split())
-    return len(w1) + len(w2)
+    return len(set(q1.split())) + len(set(q2.split()))
+
 
 def test_fetch_token_features(q1,q2):
 
@@ -100,13 +105,12 @@ def test_fetch_length_features(q1,q2):
 
 def test_fetch_fuzzy_features(q1,q2):
 
-    fuzzy_features=[0.0]*4
-    fuzzy_features[0]=fuzz.QRatio(q1,q2)
-    fuzzy_features[1]=fuzz.partial_ratio(q1,q2)
-    fuzzy_features[2]=fuzz.token_sort_ratio(q1,q2)
-    fuzzy_features[3]=fuzz.token_set_ratio(q1,q2)
-
-    return fuzzy_features
+    return [
+        fuzz.QRatio(q1,q2),
+        fuzz.partial_ratio(q1,q2),
+        fuzz.token_sort_ratio(q1,q2),
+        fuzz.token_set_ratio(q1,q2)
+    ]
 
 
 # ---------- MAIN FEATURE BUILDER ----------
@@ -117,61 +121,41 @@ def query_point_creator(q1,q2):
     q1 = preprocess(q1)
     q2 = preprocess(q2)
 
-    # basic features
-    input_query.append(len(q1))
-    input_query.append(len(q2))
-    input_query.append(len(q1.split()))
-    input_query.append(len(q2.split()))
+    input_query.extend([
+        len(q1),
+        len(q2),
+        len(q1.split()),
+        len(q2.split())
+    ])
 
     cw = test_common_words(q1,q2)
     tw = test_total_words(q1,q2)
 
-    input_query.append(cw)
-    input_query.append(tw)
-    input_query.append(round(cw/(tw+0.0001),2))
+    input_query.extend([cw, tw, round(cw/(tw+0.0001),2)])
 
-    # token features
     input_query.extend(test_fetch_token_features(q1,q2))
-
-    # length features
     input_query.extend(test_fetch_length_features(q1,q2))
-
-    # fuzzy features
     input_query.extend(test_fetch_fuzzy_features(q1,q2))
 
-    # BOW
     q1_bow = cv.transform([q1]).toarray()
     q2_bow = cv.transform([q2]).toarray()
 
     return np.hstack((np.array(input_query).reshape(1,22),q1_bow,q2_bow))
 
 
-# ---------- ROUTES ----------
-@app.route("/")
-def home():
-    return render_template("index.html")
+# ---------------- STREAMLIT UI ----------------
+q1 = st.text_input("Enter Question 1")
+q2 = st.text_input("Enter Question 2")
 
-@app.route("/predict",methods=["POST"])
-def predict():
+if st.button("Check Duplicate"):
 
-    q1 = request.form["q1"]
-    q2 = request.form["q2"]
+    if q1.strip() == "" or q2.strip() == "":
+        st.warning("Please enter both questions.")
+    else:
+        query = query_point_creator(q1,q2)
+        prediction = model.predict(query)[0]
 
-    query = query_point_creator(q1,q2)
-
-    prediction = model.predict(query)[0]
-
-    output = "Duplicate" if prediction==1 else "Not Duplicate"
-
-    return render_template(
-        "index.html",
-        prediction_text=f"Result: {output}"
-    )
-
-
-# ---------- RUN ----------
-if __name__ == "__main__":
-    app.run()
-
-
-
+        if prediction == 1:
+            st.success("Result: Duplicate Questions ✅")
+        else:
+            st.error("Result: Not Duplicate ❌")
